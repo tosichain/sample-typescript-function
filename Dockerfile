@@ -1,4 +1,4 @@
-FROM node:16-alpine
+FROM node:16-alpine AS image
 
 WORKDIR /index
 
@@ -12,6 +12,8 @@ COPY ./tsconfig.json ./
 RUN npm run build
 
 RUN rm -rf node_modules
+
+RUN rm -rf /root/.npm
 
 RUN npm install --omit=dev
 

@@ -1,0 +1,16 @@
+
+FROM alpine:3.17 AS build-image
+
+RUN apk add squashfs-tools kubo
+COPY --from=image / /image
+RUN IPFS_PATH=/tmp/.ipfs ipfs init --profile=server,flatfs,lowpower -e
+RUN mkdir -p /init_image/boot
+# make sure it's there
+RUN mkdir -p /image/boot/initial
+RUN cp -r /image/boot/initial /init_image/boot
+COPY --from=ghcr.io/tosichain/standard-stage2-loader:master@sha256:4e0fb8d945ca17ca7bf0d273cee3f29726fefce365278b500b4b76ad5c3bf78d /stage2.squashfs /init_image/boot/stage2.squashfs
+RUN mksquashfs /image /init_image/boot/contract.squashfs -reproducible -all-root -Xcompression-level 22 -comp zstd -mkfs-time 0 -all-time 0
+RUN CID=$(IPFS_PATH=/tmp/.ipfs ipfs --offline add -Q --cid-version=1 -r /init_image/) && IPFS_PATH=/tmp/.ipfs ipfs --offline dag export $CID > /init_image.car && echo -n "$CID" > /init_image.cid
+
+FROM busybox AS final-image
+COPY --from=build-image /init_image.car /init_image.car
